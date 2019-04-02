@@ -1,4 +1,4 @@
-package pardotrest_test
+package pargo_test
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.xyz.apnic.net/go-pkg/pardot/pardotrest"
+	"gitlab.xyz.apnic.net/go-pkg/pargo"
 )
 
 func TestBatchUpdateProspects(t *testing.T) {
@@ -21,7 +21,7 @@ func TestBatchUpdateProspects(t *testing.T) {
 		prospect{20, "b@b.com"},
 	}
 
-	testClient := pardotrest.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -44,8 +44,8 @@ func TestBatchUpdateProspects(t *testing.T) {
 		}
 	})
 
-	pardot := pardotrest.NewTestClient(testClient)
-	err := pardot.Call(pardotrest.BatchUpdateProspect{
+	pardot := pargo.NewTestClient(testClient)
+	err := pardot.Call(pargo.BatchUpdateProspect{
 		Prospects: &prospects,
 	})
 	if err != nil {
@@ -54,7 +54,7 @@ func TestBatchUpdateProspects(t *testing.T) {
 }
 
 func TestBatchUpdateProspectsReturnsErrors(t *testing.T) {
-	testClient := pardotrest.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -80,15 +80,15 @@ func TestBatchUpdateProspectsReturnsErrors(t *testing.T) {
 	})
 
 	prospects := []struct{}{}
-	pardot := pardotrest.NewTestClient(testClient)
-	err := pardot.Call(pardotrest.BatchUpdateProspect{
+	pardot := pargo.NewTestClient(testClient)
+	err := pardot.Call(pargo.BatchUpdateProspect{
 		Prospects: &prospects,
 	})
 	if err == nil {
 		t.Fatal("expected error")
 	}
 	switch err.(type) {
-	case pardotrest.BatchUpdateProspectErrors:
+	case pargo.BatchUpdateProspectErrors:
 	default:
 		t.Fatal("expected error of type BatchUpdateProspectErrors")
 	}
@@ -96,7 +96,7 @@ func TestBatchUpdateProspectsReturnsErrors(t *testing.T) {
 		t.Fatal("expected a non-empty error message")
 	}
 	var expected string
-	for index, msg := range err.(pardotrest.BatchUpdateProspectErrors).Errors {
+	for index, msg := range err.(pargo.BatchUpdateProspectErrors).Errors {
 		switch index {
 		case 0:
 			expected = "Invalid prospect email address"

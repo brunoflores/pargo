@@ -1,4 +1,4 @@
-package pardotrest_test
+package pargo_test
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.xyz.apnic.net/go-pkg/pardot/pardotrest"
+	"gitlab.xyz.apnic.net/go-pkg/pargo"
 )
 
 // To make sure that the REST client respects all our json annotations,
@@ -42,7 +42,7 @@ func TestQueryProspects(t *testing.T) {
 		},
 	}
 
-	testClient := pardotrest.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -80,8 +80,8 @@ func TestQueryProspects(t *testing.T) {
 	})
 
 	res := []prospect{}
-	pardot := pardotrest.NewTestClient(testClient)
-	err := pardot.Call(pardotrest.QueryProspects{
+	pardot := pargo.NewTestClient(testClient)
+	err := pardot.Call(pargo.QueryProspects{
 		Offset:      100,
 		Limit:       200,
 		Fields:      []string{"id", "email"},

@@ -1,4 +1,4 @@
-package pardotrest
+package pargo
 
 import (
 	"encoding/json"

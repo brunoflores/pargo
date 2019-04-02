@@ -1,4 +1,4 @@
-package pardotrest_test
+package pargo_test
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.xyz.apnic.net/go-pkg/pardot/pardotrest"
+	pardotrest "gitlab.xyz.apnic.net/go-pkg/pargo"
 )
 
 // The requirement is that an API Key should be requested if none is found,
