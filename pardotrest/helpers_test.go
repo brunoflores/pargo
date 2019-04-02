@@ -4,8 +4,8 @@ import (
 	"net/http"
 )
 
-func NewTestClient(c *http.Client) *PardotREST {
-	return NewPardotREST(
+func NewTestClient(c *http.Client) *Pargo {
+	return NewPargo(
 		UserAccount{
 			Email:   "a@b.com",
 			Pass:    "pass",

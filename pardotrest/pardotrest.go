@@ -56,8 +56,8 @@ type EndpointQuery interface {
 	query() (map[string]string, error)
 }
 
-// PardotREST is a client of the Pardot REST API.
-type PardotREST struct {
+// Pargo is a client of the Pardot REST API.
+type Pargo struct {
 	client *http.Client // HTTP Client we delegate calls to.
 	apiKey string       // Initially empty, refreshed by login.
 	user   UserAccount  // Credentials.
@@ -70,9 +70,9 @@ type UserAccount struct {
 	Pass    string // Password for login.
 }
 
-// NewPardotREST returns a pointer to the REST client.
-func NewPardotREST(u UserAccount) *PardotREST {
-	return &PardotREST{
+// NewPargo returns a pointer to an instance of ParGo.
+func NewPargo(u UserAccount) *Pargo {
+	return &Pargo{
 		client: &http.Client{},
 		user:   u,
 	}
@@ -80,13 +80,13 @@ func NewPardotREST(u UserAccount) *PardotREST {
 
 // WithCustomClient sets a custom http.Client.
 // Otherwise, a default client is used.
-func (p *PardotREST) WithCustomClient(c *http.Client) *PardotREST {
+func (p *Pargo) WithCustomClient(c *http.Client) *Pargo {
 	p.client = c
 	return p
 }
 
 // Call makes a call to the REST API and returns an error.
-func (p *PardotREST) Call(e Endpoint) error {
+func (p *Pargo) Call(e Endpoint) error {
 	header := make(http.Header)
 	_, isLogin := e.(*Login)
 	if isLogin == false {
@@ -135,7 +135,7 @@ func (p *PardotREST) Call(e Endpoint) error {
 	return e.read(resBytes)
 }
 
-func (p *PardotREST) newRequest(e Endpoint, header http.Header) (*http.Request, error) {
+func (p *Pargo) newRequest(e Endpoint, header http.Header) (*http.Request, error) {
 	header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req := &http.Request{
 		Method: e.method(),
@@ -174,7 +174,7 @@ func (p *PardotREST) newRequest(e Endpoint, header http.Header) (*http.Request, 
 	return req, nil
 }
 
-func (p *PardotREST) maybeAuth() error {
+func (p *Pargo) maybeAuth() error {
 	if p.apiKey != "" {
 		// Bails if we already have an api key.
 		// Try and use the one we've got.
