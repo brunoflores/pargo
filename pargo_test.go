@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	pardotrest "gitlab.xyz.apnic.net/go-pkg/pargo"
+	"gitlab.xyz.apnic.net/go-pkg/pargo"
 )
 
 // The requirement is that an API Key should be requested if none is found,
@@ -55,7 +55,7 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 	// It is used to validate the current state by comparison with the expected.
 	currentIndex := 0
 
-	testClient := pardotrest.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
 		defer func() { currentIndex++ }()
 		u := req.URL.Path
 		switch {
@@ -101,10 +101,10 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 		}
 	})
 
-	pardot := pardotrest.NewTestClient(testClient)
+	pardot := pargo.NewTestClient(testClient)
 
 	for range []int{0, 1, 2} {
-		err := pardot.Call(pardotrest.NopEndpoint{P: "/query"})
+		err := pardot.Call(pargo.NopEndpoint{P: "/query"})
 		if err != nil {
 			t.Fatalf("no errors expected, got %s", err)
 		}
@@ -113,7 +113,7 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 
 func TestResultsInErr15(t *testing.T) {
 	expected := "Login failed"
-	testClient := pardotrest.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -128,14 +128,14 @@ func TestResultsInErr15(t *testing.T) {
 		}
 	})
 
-	pardot := pardotrest.NewTestClient(testClient)
-	err := pardot.Call(pardotrest.NopEndpoint{})
+	pardot := pargo.NewTestClient(testClient)
+	err := pardot.Call(pargo.NopEndpoint{})
 
 	if err == nil {
 		t.Fatal("expected error")
 	}
 	switch err.(type) {
-	case pardotrest.ErrLoginFailed:
+	case pargo.ErrLoginFailed:
 	default:
 		t.Fatal("expected type: ErrLoginFailed")
 	}
@@ -146,7 +146,7 @@ func TestResultsInErr15(t *testing.T) {
 
 func TestResultsInErr71(t *testing.T) {
 	expected := "Input needs to be valid JSON or XML"
-	testClient := pardotrest.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -166,14 +166,14 @@ func TestResultsInErr71(t *testing.T) {
 		}
 	})
 
-	pardot := pardotrest.NewTestClient(testClient)
-	err := pardot.Call(pardotrest.NopEndpoint{P: "/query"})
+	pardot := pargo.NewTestClient(testClient)
+	err := pardot.Call(pargo.NopEndpoint{P: "/query"})
 
 	if err == nil {
 		t.Fatal("expected error")
 	}
 	switch err.(type) {
-	case pardotrest.ErrInvalidJSON:
+	case pargo.ErrInvalidJSON:
 	default:
 		t.Fatal("expected error of type ErrInvalidJSON")
 	}
@@ -183,7 +183,7 @@ func TestResultsInErr71(t *testing.T) {
 }
 
 func TestFormatAllJSON(t *testing.T) {
-	testClient := pardotrest.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
 		if got := req.FormValue("format"); got != "json" {
 			t.Fatalf("expected query string format=%s, got: %s", "json", got)
 		}
@@ -192,6 +192,6 @@ func TestFormatAllJSON(t *testing.T) {
 			Body:       ioutil.NopCloser(bytes.NewBufferString(``)),
 			Header:     make(http.Header)}
 	})
-	pardot := pardotrest.NewTestClient(testClient)
-	_ = pardot.Call(pardotrest.NopEndpoint{})
+	pardot := pargo.NewTestClient(testClient)
+	_ = pardot.Call(pargo.NopEndpoint{})
 }
