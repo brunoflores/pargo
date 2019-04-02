@@ -7,12 +7,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/pkg/errors"
 )
 
 // ErrLoginFailed is the error code 15 in Pardot.
+// It implements `error`.
 // See http://developer.pardot.com/kb/error-codes-messages.
 type ErrLoginFailed struct {
 	msg string
@@ -22,64 +22,83 @@ func (e ErrLoginFailed) Error() string {
 	return e.msg
 }
 
+// ErrInvalidJSON is the error code 71 in Pardot.
+// It implements `error`.
+type ErrInvalidJSON struct {
+	msg string
+}
+
+func (e ErrInvalidJSON) Error() string {
+	return e.msg
+}
+
 const (
 	base    = "https://pi.pardot.com/api"
 	version = "version/4"
 )
 
-// Endpoint is the behaviour required for an endpoint in the REST API.
+// Endpoint is the behaviour required for an endpoint.
 type Endpoint interface {
 	method() string
 	path() string
-	body() (io.ReadCloser, error)
-	query() (map[string][]byte, error)
 	read([]byte) error
+}
+
+// EndpointBody is an endpoint with a body.
+type EndpointBody interface {
+	Endpoint
+	body() (io.ReadCloser, error)
+}
+
+// EndpointQuery is an endpoint with query strings.
+type EndpointQuery interface {
+	Endpoint
+	query() (map[string]string, error)
 }
 
 // PardotREST is a client of the Pardot REST API.
 type PardotREST struct {
-	client  *http.Client
-	apiKey  string
-	userKey string
-	email   string
-	pass    string
+	client *http.Client // HTTP Client we delegate calls to.
+	apiKey string       // Initially empty, refreshed by login.
+	user   UserAccount  // Credentials.
+}
+
+// UserAccount is the set of required credentials.
+type UserAccount struct {
+	UserKey string // Client key used for login.
+	Email   string // Email used as username for login.
+	Pass    string // Password for login.
 }
 
 // NewPardotREST returns a pointer to the REST client.
-func NewPardotREST() *PardotREST {
-	return &PardotREST{client: &http.Client{}}
+func NewPardotREST(u UserAccount) *PardotREST {
+	return &PardotREST{
+		client: &http.Client{},
+		user:   u,
+	}
 }
 
 // WithCustomClient sets a custom http.Client.
+// Otherwise, a default client is used.
 func (p *PardotREST) WithCustomClient(c *http.Client) *PardotREST {
 	p.client = c
 	return p
 }
 
-// WithPardotUserAccount configures a given user account.
-func (p *PardotREST) WithPardotUserAccount(email, pass, key string) *PardotREST {
-	p.email = email
-	p.pass = pass
-	p.userKey = key
-	return p
-}
-
 // Call makes a call to the REST API and returns an error.
 func (p *PardotREST) Call(e Endpoint) error {
-	if err := p.maybeAuth(); err != nil {
-		return err
-	}
 	header := make(http.Header)
-	header.Add("Authorization", fmt.Sprintf("Pardot api_key=%s, user_key=%s", p.apiKey, p.userKey))
-	body, err := e.body()
-	if err != nil {
-		return err
+	_, isLogin := e.(*Login)
+	if isLogin == false {
+		if err := p.maybeAuth(); err != nil {
+			return err
+		}
+		header.Add("Authorization", fmt.Sprintf("Pardot api_key=%s, user_key=%s", p.apiKey, p.user.UserKey))
 	}
-	query, err := e.query()
+	req, err := p.newRequest(e, header)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "building request")
 	}
-	req := p.newRequest(e.method(), e.path(), body, query, header)
 	res, err := p.client.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "issuing request")
@@ -104,80 +123,72 @@ func (p *PardotREST) Call(e Endpoint) error {
 	}
 	if resBody.Err != nil {
 		switch resBody.Attr.ErrCode {
-		case 1:
+		case 1: // API key expired so refresh key and try again.
 			p.apiKey = ""
 			return p.Call(e)
-		default:
-			return errors.New(*resBody.Err)
+		case 15:
+			return ErrLoginFailed{*resBody.Err}
+		case 71:
+			return ErrInvalidJSON{*resBody.Err}
 		}
 	}
-	e.read(resBytes)
-	return nil
+	return e.read(resBytes)
 }
 
-func (p *PardotREST) newRequest(method, path string, body io.ReadCloser, query map[string][]byte, header http.Header) *http.Request {
-	u := &url.URL{
-		Host: base,
-		Path: path,
-	}
-	q := u.Query()
-	for k, v := range query {
-		q.Add(k, string(v))
-	}
-	u.RawQuery = q.Encode()
+func (p *PardotREST) newRequest(e Endpoint, header http.Header) (*http.Request, error) {
 	header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req := &http.Request{
-		Method:     method,
-		URL:        u,
+		Method: e.method(),
+		URL: &url.URL{
+			Host: base,
+			Path: e.path(),
+		},
 		Proto:      "HTTP/1.1",
 		ProtoMajor: 1,
 		ProtoMinor: 1,
 		Header:     header,
-		Host:       u.Host,
-		Body:       body,
+		Host:       base,
 	}
-	return req
+
+	if _, ok := e.(EndpointBody); ok {
+		body, err := e.(EndpointBody).body()
+		if err != nil {
+			return nil, err
+		}
+		req.Body = body
+	}
+
+	q := req.URL.Query()
+	q.Add("format", "json")
+	if _, ok := e.(EndpointQuery); ok {
+		query, err := e.(EndpointQuery).query()
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range query {
+			q.Add(k, string(v))
+		}
+	}
+	req.URL.RawQuery = q.Encode()
+
+	return req, nil
 }
 
 func (p *PardotREST) maybeAuth() error {
 	if p.apiKey != "" {
-		return nil // bails if we already have an api key.
+		// Bails if we already have an api key.
+		// Try and use the one we've got.
+		return nil
 	}
-	const loginPath = "login/" + version
-	body := ioutil.NopCloser(strings.NewReader(fmt.Sprintf("email=%s&password=%s&user_key=%s", p.email, p.pass, p.userKey)))
-	header := make(http.Header)
-	req := p.newRequest("POST", loginPath, body, make(map[string][]byte), header)
-	res, err := p.client.Do(req)
+	req := Login{
+		userKey: p.user.UserKey,
+		email:   p.user.Email,
+		pass:    p.user.Pass,
+	}
+	err := p.Call(&req)
 	if err != nil {
-		return errors.Wrap(err, "issuing get request")
+		return err
 	}
-	defer res.Body.Close()
-	if c := res.StatusCode; c != 200 {
-		return errors.New(fmt.Sprintf("status code %d", c))
-	}
-	resB, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return errors.Wrap(err, "reading response bytes")
-	}
-	loginRes := struct {
-		Key  string  `json:"api_key,omitempty"`
-		Err  *string `json:"err,omitempty"`
-		Attr *struct {
-			ErrCode int `json:"err_code"`
-		} `json:"@attributes,omitempty"`
-	}{}
-	err = json.Unmarshal(resB, &loginRes)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("unmarshaling auth result: %s", string(resB)))
-	}
-	if loginRes.Err != nil {
-		switch loginRes.Attr.ErrCode {
-		case 15:
-			return ErrLoginFailed{*loginRes.Err}
-		default:
-			return errors.New(*loginRes.Err)
-		}
-	}
-	p.apiKey = loginRes.Key
+	p.apiKey = req.apiKey
 	return nil
 }

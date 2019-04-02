@@ -1,4 +1,4 @@
-package pardotrest
+package pardotrest_test
 
 import (
 	"bytes"
@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"gitlab.xyz.apnic.net/go-pkg/pardot/pardotrest"
 )
 
 // To make sure that the REST client respects all our json annotations,
@@ -40,15 +42,24 @@ func TestQueryProspects(t *testing.T) {
 		},
 	}
 
-	testClient := newTestClient(func(req *http.Request) *http.Response {
+	testClient := pardotrest.NewTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
 			return &http.Response{
 				StatusCode: 200,
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"api_key":"anyapikey"}`)),
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				Header:     make(http.Header)}
 		case strings.Contains(u, `/query`):
+			if got := req.FormValue("offset"); got != "100" {
+				t.Fatalf("expected query string offset=%s, got: %s", "100", got)
+			}
+			if got := req.FormValue("limit"); got != "200" {
+				t.Fatalf("expected query string limit=%s, got: %s", "200", got)
+			}
+			if got := req.FormValue("fields"); got != "id,email" {
+				t.Fatalf("expected query string fields=%s, got: %s", "id,email", got)
+			}
 			strs := []string{}
 			for _, test := range tests {
 				b, err := json.Marshal(test.p)
@@ -69,11 +80,11 @@ func TestQueryProspects(t *testing.T) {
 	})
 
 	res := []prospect{}
-	pardot := NewPardotREST().WithCustomClient(testClient)
-	err := pardot.Call(QueryProspects{
-		Offset:      0,
-		Limit:       1,
-		Fields:      []string{"id"},
+	pardot := pardotrest.NewTestClient(testClient)
+	err := pardot.Call(pardotrest.QueryProspects{
+		Offset:      100,
+		Limit:       200,
+		Fields:      []string{"id", "email"},
 		PlaceHolder: &res,
 	})
 	if err != nil {

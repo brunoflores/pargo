@@ -1,13 +1,14 @@
-package pardotrest
+package pardotrest_test
 
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
+
+	"gitlab.xyz.apnic.net/go-pkg/pardot/pardotrest"
 )
 
 // The requirement is that an API Key should be requested if none is found,
@@ -54,13 +55,22 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 	// It is used to validate the current state by comparison with the expected.
 	currentIndex := 0
 
-	testClient := newTestClient(func(req *http.Request) *http.Response {
+	testClient := pardotrest.NewTestHTTPClient(func(req *http.Request) *http.Response {
 		defer func() { currentIndex++ }()
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
 			if requests[currentIndex].path != `login/` {
 				t.Fatalf("request #%d was not expected to be a login", currentIndex)
+			}
+			if got := req.PostFormValue("email"); got != "a@b.com" {
+				t.Fatalf("expected credential: email=%s, got: %s", "a@b.com", got)
+			}
+			if got := req.PostFormValue("password"); got != "pass" {
+				t.Fatalf("expected credential: password=%s, got: %s", "pass", got)
+			}
+			if got := req.PostFormValue("user_key"); got != "clientkey" {
+				t.Fatalf("expected credential: user_key=%s, got: %s", "clientkey", got)
 			}
 			return &http.Response{
 				StatusCode: 200,
@@ -78,7 +88,7 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 			}
 			var jsonStr string
 			if requests[currentIndex].returnExpired {
-				jsonStr = `{"@attributes":{"err_code": 1}}`
+				jsonStr = `{"err":"Invalid API key or user key","@attributes":{"err_code": 1}}`
 			} else {
 				jsonStr = `{"result":{}}`
 			}
@@ -91,48 +101,97 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 		}
 	})
 
-	pardot := NewPardotREST().
-		WithCustomClient(testClient).
-		WithPardotUserAccount("a@b.com", "secretpass", "clientkey")
+	pardot := pardotrest.NewTestClient(testClient)
 
 	for range []int{0, 1, 2} {
-		err := pardot.Call(NopRequest{})
+		err := pardot.Call(pardotrest.NopEndpoint{P: "/query"})
 		if err != nil {
 			t.Fatalf("no errors expected, got %s", err)
 		}
 	}
 }
 
-type roundTripFunc func(req *http.Request) *http.Response
+func TestResultsInErr15(t *testing.T) {
+	expected := "Login failed"
+	testClient := pardotrest.NewTestHTTPClient(func(req *http.Request) *http.Response {
+		u := req.URL.Path
+		switch {
+		case strings.Contains(u, `login/`):
+			return &http.Response{
+				StatusCode: 200,
+				Body: ioutil.NopCloser(
+					bytes.NewBufferString(`{"err":"` + expected + `","@attributes":{"err_code":15}}`)),
+				Header: make(http.Header)}
+		default:
+			t.Fatal("endpoint not called")
+			return nil
+		}
+	})
 
-func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req), nil
-}
+	pardot := pardotrest.NewTestClient(testClient)
+	err := pardot.Call(pardotrest.NopEndpoint{})
 
-func newTestClient(fn roundTripFunc) *http.Client {
-	return &http.Client{
-		Transport: roundTripFunc(fn),
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	switch err.(type) {
+	case pardotrest.ErrLoginFailed:
+	default:
+		t.Fatal("expected type: ErrLoginFailed")
+	}
+	if err.Error() != expected {
+		t.Fatalf("expected: %s, got: %s", expected, err.Error())
 	}
 }
 
-type NopRequest struct{}
+func TestResultsInErr71(t *testing.T) {
+	expected := "Input needs to be valid JSON or XML"
+	testClient := pardotrest.NewTestHTTPClient(func(req *http.Request) *http.Response {
+		u := req.URL.Path
+		switch {
+		case strings.Contains(u, `login/`):
+			return &http.Response{
+				StatusCode: 200,
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"api_key":"anyapikey"}`)),
+				Header:     make(http.Header)}
+		case strings.Contains(u, `/query`):
+			return &http.Response{
+				StatusCode: 200,
+				Body: ioutil.NopCloser(
+					bytes.NewBufferString(`{"err":"` + expected + `","@attributes":{"err_code":71}}`)),
+				Header: make(http.Header)}
+		default:
+			t.Fatal("endpoint not called")
+			return nil
+		}
+	})
 
-func (NopRequest) method() string {
-	return "GET"
+	pardot := pardotrest.NewTestClient(testClient)
+	err := pardot.Call(pardotrest.NopEndpoint{P: "/query"})
+
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	switch err.(type) {
+	case pardotrest.ErrInvalidJSON:
+	default:
+		t.Fatal("expected error of type ErrInvalidJSON")
+	}
+	if err.Error() != expected {
+		t.Fatalf("expected: %s, got: %s", expected, err.Error())
+	}
 }
 
-func (NopRequest) path() string {
-	return "/query"
-}
-
-func (NopRequest) query() (map[string][]byte, error) {
-	return nil, nil
-}
-
-func (NopRequest) body() (io.ReadCloser, error) {
-	return nil, nil
-}
-
-func (NopRequest) read(r []byte) error {
-	return nil
+func TestFormatAllJSON(t *testing.T) {
+	testClient := pardotrest.NewTestHTTPClient(func(req *http.Request) *http.Response {
+		if got := req.FormValue("format"); got != "json" {
+			t.Fatalf("expected query string format=%s, got: %s", "json", got)
+		}
+		return &http.Response{
+			StatusCode: 200,
+			Body:       ioutil.NopCloser(bytes.NewBufferString(``)),
+			Header:     make(http.Header)}
+	})
+	pardot := pardotrest.NewTestClient(testClient)
+	_ = pardot.Call(pardotrest.NopEndpoint{})
 }
