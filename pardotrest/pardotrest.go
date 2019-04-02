@@ -50,6 +50,7 @@ func NewPardotREST() *PardotREST {
 	return &PardotREST{client: &http.Client{}}
 }
 
+// WithCustomClient sets a custom http.Client.
 func (p *PardotREST) WithCustomClient(c *http.Client) *PardotREST {
 	p.client = c
 	return p
@@ -63,6 +64,7 @@ func (p *PardotREST) WithPardotUserAccount(email, pass, key string) *PardotREST 
 	return p
 }
 
+// Call makes a call to the REST API and returns an error.
 func (p *PardotREST) Call(e Endpoint) error {
 	if err := p.maybeAuth(); err != nil {
 		return err
