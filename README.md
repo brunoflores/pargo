@@ -4,7 +4,7 @@ Package pargo provides a Go client for the [Pardot REST API](http://developer.pa
 
 `go get gitlab.xyz.apnic.net/go-pkg/pargo`
 
-![ParGo](pargo.png =250x)
+![ParGo](pargo.png)
 
 ```go
 type prospect struct {
