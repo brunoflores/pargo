@@ -1,0 +1,14 @@
+stages:
+  - test
+
+test:
+  stage: test
+  image:
+    name: golang:1.12.0
+  services:
+  - name: mysql:5.7
+    alias: mysql
+  script:
+    # - go vet -mod=vendor ./...
+    - go vet ./...
+    - go test -v ./...
