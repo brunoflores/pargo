@@ -31,9 +31,9 @@ if err != nil {
         // Invalid credentials.
     case pargo.ErrInvalidJSON:
         // Invalid request.
-	default:
-		// Some other error.
-	}
+    default:
+        // Some other error.
+    }
 }
 // ... Use `response` slice.
 ```
