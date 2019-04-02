@@ -25,7 +25,15 @@ err := pardot.Call(pargo.QueryProspects{
     PlaceHolder: &response, // Pointer to placeholder.
 })
 if err != nil {
-    // Handle error.
+    // Handle error, optionally testing for custom ParGo errors:
+    switch err.(type) {
+    case pargo.ErrLoginFailed:
+        // Invalid credentials.
+    case pargo.ErrInvalidJSON:
+        // Invalid request.
+	default:
+		// Some other error.
+	}
 }
 // ... Use `response` slice.
 ```
