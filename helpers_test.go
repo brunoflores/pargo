@@ -30,6 +30,10 @@ type NopEndpoint struct {
 	M, P string
 }
 
+func (p *Pargo) NopEndpoint(args NopEndpoint) error {
+	return p.call(args)
+}
+
 func (e NopEndpoint) method() string {
 	return e.M
 }

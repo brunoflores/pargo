@@ -16,6 +16,11 @@ type QueryProspects struct {
 	PlaceHolder   interface{}
 }
 
+// QueryProspects executes the endpoint with arguments.
+func (p *Pargo) QueryProspects(args QueryProspects) error {
+	return p.call(args)
+}
+
 func (QueryProspects) method() string {
 	return http.MethodGet
 }

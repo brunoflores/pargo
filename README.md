@@ -18,7 +18,11 @@ pardot := pargo.NewPargo(
         Pass:    "mypass",
         UserKey: "myclientkey",
     })
-err := pardot.Call(pargo.QueryProspects{
+// Conventionally, each endpoint as a method of the client might
+// expect a struct of options with the same name.
+// Note: the method is called on the client `pardot`,
+// and the options struct is accessed via the package name `pargo`.
+err := pardot.QueryProspects(pargo.QueryProspects{
     Offset:      0,
     Limit:       200,
     Fields:      []string{"id", "email"},

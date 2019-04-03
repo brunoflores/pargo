@@ -104,7 +104,7 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 	pardot := pargo.NewTestClient(testClient)
 
 	for range []int{0, 1, 2} {
-		err := pardot.Call(pargo.NopEndpoint{P: "/query"})
+		err := pardot.NopEndpoint(pargo.NopEndpoint{P: "/query"})
 		if err != nil {
 			t.Fatalf("no errors expected, got %s", err)
 		}
@@ -129,7 +129,7 @@ func TestResultsInErr15(t *testing.T) {
 	})
 
 	pardot := pargo.NewTestClient(testClient)
-	err := pardot.Call(pargo.NopEndpoint{})
+	err := pardot.NopEndpoint(pargo.NopEndpoint{})
 
 	if err == nil {
 		t.Fatal("expected error")
@@ -167,7 +167,7 @@ func TestResultsInErr71(t *testing.T) {
 	})
 
 	pardot := pargo.NewTestClient(testClient)
-	err := pardot.Call(pargo.NopEndpoint{P: "/query"})
+	err := pardot.NopEndpoint(pargo.NopEndpoint{P: "/query"})
 
 	if err == nil {
 		t.Fatal("expected error")
@@ -193,5 +193,5 @@ func TestFormatAllJSON(t *testing.T) {
 			Header:     make(http.Header)}
 	})
 	pardot := pargo.NewTestClient(testClient)
-	_ = pardot.Call(pargo.NopEndpoint{})
+	_ = pardot.NopEndpoint(pargo.NopEndpoint{})
 }

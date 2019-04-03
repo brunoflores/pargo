@@ -37,25 +37,6 @@ const (
 	version = "version/4"
 )
 
-// Endpoint is the behaviour required for an endpoint.
-type Endpoint interface {
-	method() string
-	path() string
-	read([]byte) error
-}
-
-// EndpointBody is an endpoint with a body.
-type EndpointBody interface {
-	Endpoint
-	body() (io.ReadCloser, error)
-}
-
-// EndpointQuery is an endpoint with query strings.
-type EndpointQuery interface {
-	Endpoint
-	query() (map[string]string, error)
-}
-
 // Pargo is a client of the Pardot REST API.
 type Pargo struct {
 	client *http.Client // HTTP Client we delegate calls to.
@@ -85,8 +66,26 @@ func (p *Pargo) WithCustomClient(c *http.Client) *Pargo {
 	return p
 }
 
-// Call makes a call to the REST API and returns an error.
-func (p *Pargo) Call(e Endpoint) error {
+// endpoint is the behaviour required for an endpoint.
+type endpoint interface {
+	method() string
+	path() string
+	read([]byte) error
+}
+
+// endpointBody is an endpoint with a body.
+type endpointBody interface {
+	endpoint
+	body() (io.ReadCloser, error)
+}
+
+// endpointQuery is an endpoint with query strings.
+type endpointQuery interface {
+	endpoint
+	query() (map[string]string, error)
+}
+
+func (p *Pargo) call(e endpoint) error {
 	header := make(http.Header)
 	_, isLogin := e.(*Login)
 	if isLogin == false {
@@ -125,7 +124,7 @@ func (p *Pargo) Call(e Endpoint) error {
 		switch resBody.Attr.ErrCode {
 		case 1: // API key expired so refresh key and try again.
 			p.apiKey = ""
-			return p.Call(e)
+			return p.call(e)
 		case 15:
 			return ErrLoginFailed{*resBody.Err}
 		case 71:
@@ -135,7 +134,7 @@ func (p *Pargo) Call(e Endpoint) error {
 	return e.read(resBytes)
 }
 
-func (p *Pargo) newRequest(e Endpoint, header http.Header) (*http.Request, error) {
+func (p *Pargo) newRequest(e endpoint, header http.Header) (*http.Request, error) {
 	header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req := &http.Request{
 		Method: e.method(),
@@ -150,8 +149,8 @@ func (p *Pargo) newRequest(e Endpoint, header http.Header) (*http.Request, error
 		Host:       base,
 	}
 
-	if _, ok := e.(EndpointBody); ok {
-		body, err := e.(EndpointBody).body()
+	if _, ok := e.(endpointBody); ok {
+		body, err := e.(endpointBody).body()
 		if err != nil {
 			return nil, err
 		}
@@ -160,8 +159,8 @@ func (p *Pargo) newRequest(e Endpoint, header http.Header) (*http.Request, error
 
 	q := req.URL.Query()
 	q.Add("format", "json")
-	if _, ok := e.(EndpointQuery); ok {
-		query, err := e.(EndpointQuery).query()
+	if _, ok := e.(endpointQuery); ok {
+		query, err := e.(endpointQuery).query()
 		if err != nil {
 			return nil, err
 		}
@@ -185,7 +184,7 @@ func (p *Pargo) maybeAuth() error {
 		email:   p.user.Email,
 		pass:    p.user.Pass,
 	}
-	err := p.Call(&req)
+	err := p.call(&req)
 	if err != nil {
 		return err
 	}

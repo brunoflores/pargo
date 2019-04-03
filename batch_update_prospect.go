@@ -11,6 +11,11 @@ type BatchUpdateProspect struct {
 	Prospects interface{}
 }
 
+// BatchUpdateProspects executes the endpoint with arguments.
+func (p *Pargo) BatchUpdateProspects(args BatchUpdateProspect) error {
+	return p.call(args)
+}
+
 // BatchUpdateProspectErrors is the result from a batch operation when errors were encountered.
 //
 // NOTE from http://developer.pardot.com: If any errors are found during the batch process,

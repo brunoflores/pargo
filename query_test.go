@@ -81,7 +81,7 @@ func TestQueryProspects(t *testing.T) {
 
 	res := []prospect{}
 	pardot := pargo.NewTestClient(testClient)
-	err := pardot.Call(pargo.QueryProspects{
+	err := pardot.QueryProspects(pargo.QueryProspects{
 		Offset:      100,
 		Limit:       200,
 		Fields:      []string{"id", "email"},

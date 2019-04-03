@@ -45,7 +45,7 @@ func TestBatchUpdateProspects(t *testing.T) {
 	})
 
 	pardot := pargo.NewTestClient(testClient)
-	err := pardot.Call(pargo.BatchUpdateProspect{
+	err := pardot.BatchUpdateProspects(pargo.BatchUpdateProspect{
 		Prospects: &prospects,
 	})
 	if err != nil {
@@ -81,7 +81,7 @@ func TestBatchUpdateProspectsReturnsErrors(t *testing.T) {
 
 	prospects := []struct{}{}
 	pardot := pargo.NewTestClient(testClient)
-	err := pardot.Call(pargo.BatchUpdateProspect{
+	err := pardot.BatchUpdateProspects(pargo.BatchUpdateProspect{
 		Prospects: &prospects,
 	})
 	if err == nil {
