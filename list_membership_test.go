@@ -83,3 +83,40 @@ func TestReadsASingle(t *testing.T) {
 		t.Fatalf("expected 1 membership, got %d", len(memberships))
 	}
 }
+
+func TestReadsEmptyPage(t *testing.T) {
+	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+		u := req.URL.Path
+		switch {
+		case strings.Contains(u, `login/`):
+			return &http.Response{
+				StatusCode: 200,
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Header:     make(http.Header)}
+		case strings.Contains(u, `listMembership/`):
+			return &http.Response{
+				StatusCode: 200,
+				Body: ioutil.NopCloser(bytes.NewBufferString(
+					`{"result":{"total_results": 2}}`)),
+				Header: make(http.Header)}
+		default:
+			t.Fatal("no endpoint called")
+			return nil
+		}
+	})
+
+	pardot := pargo.NewTestClient(testClient)
+	var memberships []pargo.ListMembership
+	err := pardot.ListMemberships(pargo.ListMemberships{
+		Offset:      100,
+		Limit:       200,
+		ListID:      24323,
+		Placeholder: &memberships,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(memberships) != 0 {
+		t.Fatalf("expected 0 memberships, got %d", len(memberships))
+	}
+}

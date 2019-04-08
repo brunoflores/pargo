@@ -52,6 +52,12 @@ func (q ListMemberships) read(res []byte) error {
 	}{}
 	// Discard error and assume that the JSON from Pardot is valid.
 	_ = json.Unmarshal(res, &body)
+
+	// Got an empty page.
+	if body.Result.List == nil {
+		return nil
+	}
+
 	switch i := body.Result.Total; i {
 	case 1:
 		var p ListMembership
