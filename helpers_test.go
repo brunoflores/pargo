@@ -26,22 +26,30 @@ func NewTestHTTPClient(fn roundTripFunc) *http.Client {
 	}
 }
 
-type NopEndpoint struct {
-	M, P string
+type MockEndpoint struct {
+	MethodFunc func() string
+	PathFunc   func() string
+	ReadFunc   func([]byte) error
 }
 
-func (p *Pargo) NopEndpoint(args NopEndpoint) error {
+func (p *Pargo) MockEndpoint(args MockEndpoint) error {
 	return p.call(args)
 }
 
-func (e NopEndpoint) method() string {
-	return e.M
+func (e MockEndpoint) method() string {
+	if e.MethodFunc == nil {
+		return http.MethodGet
+	}
+	return e.MethodFunc()
 }
 
-func (e NopEndpoint) path() string {
-	return e.P
+func (e MockEndpoint) path() string {
+	return e.PathFunc()
 }
 
-func (NopEndpoint) read(r []byte) error {
-	return nil
+func (e MockEndpoint) read(r []byte) error {
+	if e.ReadFunc == nil {
+		return nil
+	}
+	return e.ReadFunc(r)
 }
