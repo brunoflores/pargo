@@ -103,9 +103,6 @@ func (p *Pargo) call(e endpoint) error {
 		return errors.Wrap(err, "issuing request")
 	}
 	defer res.Body.Close()
-	if c := res.StatusCode; c != 200 {
-		return errors.New(fmt.Sprintf("status code %d", c))
-	}
 	resBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return errors.Wrap(err, "reading response bytes")
