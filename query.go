@@ -45,6 +45,12 @@ func (q QueryProspects) read(res []byte) error {
 	}{}
 	// Discard error and assume that the JSON from Pardot is valid.
 	_ = json.Unmarshal(res, &body)
+
+	// Got an empty page.
+	if body.Result.Prospect == nil {
+		return nil
+	}
+
 	err := json.Unmarshal(body.Result.Prospect, q.PlaceHolder)
 	if err != nil {
 		return errors.Wrap(err, "unmarshaling prospects")

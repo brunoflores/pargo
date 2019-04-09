@@ -103,3 +103,40 @@ func TestQueryProspects(t *testing.T) {
 		}
 	}
 }
+
+func TestQueryReadsEmptyPage(t *testing.T) {
+	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+		u := req.URL.Path
+		switch {
+		case strings.Contains(u, `login/`):
+			return &http.Response{
+				StatusCode: 200,
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Header:     make(http.Header)}
+		case strings.Contains(u, `/query`):
+			return &http.Response{
+				StatusCode: 200,
+				Body: ioutil.NopCloser(bytes.NewBufferString(
+					`{"result":{"total_results": 2}}`)),
+				Header: make(http.Header)}
+		default:
+			t.Fatal("no endpoint called")
+			return nil
+		}
+	})
+
+	pardot := pargo.NewTestClient(testClient)
+	var prospects []struct{}
+	err := pardot.QueryProspects(pargo.QueryProspects{
+		Offset:      100,
+		Limit:       200,
+		Fields:      []string{"id"},
+		PlaceHolder: &prospects,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(prospects) != 0 {
+		t.Fatalf("expected 0 prospects, got %d", len(prospects))
+	}
+}
