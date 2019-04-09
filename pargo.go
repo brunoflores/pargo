@@ -33,7 +33,7 @@ func (e ErrInvalidJSON) Error() string {
 }
 
 const (
-	base    = "pi.pardot.com/api"
+	base    = "pi.pardot.com"
 	version = "version/4"
 )
 
@@ -141,7 +141,7 @@ func (p *Pargo) newRequest(e endpoint, header http.Header) (*http.Request, error
 		URL: &url.URL{
 			Scheme: "https",
 			Host:   base,
-			Path:   e.path(),
+			Path:   "/api/" + e.path(),
 		},
 		Header: header,
 	}
