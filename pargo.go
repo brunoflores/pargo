@@ -139,8 +139,9 @@ func (p *Pargo) newRequest(e endpoint, header http.Header) (*http.Request, error
 	req := &http.Request{
 		Method: e.method(),
 		URL: &url.URL{
-			Host: base,
-			Path: e.path(),
+			Scheme: "https:",
+			Host:   base,
+			Path:   e.path(),
 		},
 		Header: header,
 	}
