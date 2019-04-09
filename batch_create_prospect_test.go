@@ -27,7 +27,7 @@ func TestBatchCreateProspects(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				Header:     make(http.Header)}
 		case strings.Contains(u, `/batchCreate`):
-			expected := `[{"email":"a@a.com"},{"email":"b@b.com"}]`
+			expected := `{"prospects":[{"email":"a@a.com"},{"email":"b@b.com"}]}`
 			if got := req.FormValue("prospects"); got != expected {
 				t.Fatalf("expected: %s, got: %s", expected, got)
 			}
