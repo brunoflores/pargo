@@ -107,6 +107,9 @@ func (p *Pargo) call(e endpoint) error {
 	if err != nil {
 		return errors.Wrap(err, "reading response bytes")
 	}
+	if c := res.StatusCode; c != 200 {
+		return errors.New(fmt.Sprintf("status code %d: %s", c, string(resBytes)))
+	}
 	resBody := struct {
 		Err  *string `json:"err,omitempty"`
 		Attr *struct {
