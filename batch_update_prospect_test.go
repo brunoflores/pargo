@@ -30,7 +30,7 @@ func TestBatchUpdateProspects(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				Header:     make(http.Header)}
 		case strings.Contains(u, `/batchUpdate`):
-			expected := `[{"id":10,"email":"a@a.com"},{"id":20,"email":"b@b.com"}]`
+			expected := `{"prospects":[{"id":10,"email":"a@a.com"},{"id":20,"email":"b@b.com"}]}`
 			if got := req.FormValue("prospects"); got != expected {
 				t.Fatalf("expected: %s, got: %s", expected, got)
 			}

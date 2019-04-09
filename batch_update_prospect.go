@@ -44,7 +44,11 @@ func (q BatchUpdateProspect) path() string {
 
 func (q BatchUpdateProspect) query() (map[string]string, error) {
 	query := make(map[string]string)
-	b, err := json.Marshal(q.Prospects)
+	type wrap struct {
+		Prospects interface{} `json:"prospects"`
+	}
+	w := wrap{q.Prospects}
+	b, err := json.Marshal(w)
 	if err != nil {
 		return nil, err
 	}
