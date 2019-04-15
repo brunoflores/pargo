@@ -107,7 +107,9 @@ func (p *Pargo) call(e endpoint) error {
 	if err != nil {
 		return errors.Wrap(err, "reading response bytes")
 	}
-	if c := res.StatusCode; c != 200 {
+	switch c := res.StatusCode; c {
+	case 200, 201:
+	default:
 		return errors.New(fmt.Sprintf("status code %d: %s", c, string(resBytes)))
 	}
 	resBody := struct {
