@@ -14,15 +14,15 @@ type Login struct {
 	userKey, email, pass, apiKey string
 }
 
-func (*Login) method() string {
+func (*Login) Method() string {
 	return http.MethodPost
 }
 
-func (*Login) path() string {
+func (*Login) Path() string {
 	return "login/" + version
 }
 
-func (l *Login) read(res []byte) error {
+func (l *Login) Read(res []byte) error {
 	loginRes := struct {
 		Key string `json:"api_key"`
 	}{}
@@ -32,7 +32,7 @@ func (l *Login) read(res []byte) error {
 	return nil
 }
 
-func (l *Login) body() (io.ReadCloser, error) {
+func (l *Login) Body() (io.ReadCloser, error) {
 	return ioutil.NopCloser(
 			strings.NewReader(
 				fmt.Sprintf("email=%s&password=%s&user_key=%s",
