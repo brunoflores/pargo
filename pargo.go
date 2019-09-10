@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"sync"
+
 	"github.com/pkg/errors"
 )
 
@@ -39,11 +41,13 @@ const (
 	version = "version/4"
 )
 
-// Pargo is a client of the Pardot REST API.
+// Pargo is the state of a client.
 type Pargo struct {
 	client *http.Client // HTTP Client we delegate calls to.
-	apiKey string       // Initially empty, refreshed by login.
-	user   UserAccount  // Credentials.
+	user   UserAccount  // Stored so the token can be refreshed as needed.
+
+	apiKey   string // Initially empty, refreshed by login.
+	apiKeyMu sync.Mutex
 }
 
 // UserAccount is the set of required credentials.
@@ -189,6 +193,8 @@ func (p *Pargo) NewRequest(
 }
 
 func (p *Pargo) maybeAuth() error {
+	p.apiKeyMu.Lock()
+	defer p.apiKeyMu.Unlock()
 	if p.apiKey != "" {
 		// Bails if we already have an api key.
 		// Try and use the one we've got.
