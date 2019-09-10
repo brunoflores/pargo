@@ -1,3 +1,4 @@
+// Package pargo provides a Go client for the Pardot REST API.
 package pargo
 
 import (
@@ -24,6 +25,7 @@ func (e ErrLoginFailed) Error() string {
 
 // ErrInvalidJSON is the error code 71 in Pardot.
 // It implements `error`.
+// See http://developer.pardot.com/kb/error-codes-messages.
 type ErrInvalidJSON struct {
 	msg string
 }
@@ -51,50 +53,59 @@ type UserAccount struct {
 	Pass    string // Password for login.
 }
 
-// NewPargo returns a pointer to an instance of ParGo.
-func NewPargo(u UserAccount) *Pargo {
-	return &Pargo{
-		client: &http.Client{},
+// NewPargo returns a pointer to a newly instantiated client.
+func NewPargo(u UserAccount, confs ...func(*Pargo)) *Pargo {
+	client := Pargo{
+		client: &http.Client{}, // Default client.
 		user:   u,
 	}
+	for _, conf := range confs {
+		conf(&client)
+	}
+	return &client
 }
 
 // WithCustomClient sets a custom http.Client.
-// Otherwise, a default client is used.
-func (p *Pargo) WithCustomClient(c *http.Client) *Pargo {
-	p.client = c
-	return p
+func WithCustomClient(c *http.Client) func(*Pargo) {
+	return func(client *Pargo) {
+		client.client = c
+	}
 }
 
-// endpoint is the behaviour required for an endpoint.
-type endpoint interface {
-	method() string
-	path() string
-	read([]byte) error
+// Endpoint is the behaviour required for an endpoint.
+type Endpoint interface {
+	Method() string
+	Path() string
+	Read([]byte) error
 }
 
-// endpointBody is an endpoint with a body.
-type endpointBody interface {
-	endpoint
-	body() (io.ReadCloser, error)
+// EndpointBody is an endpoint with a body.
+type EndpointBody interface {
+	Endpoint
+	Body() (io.ReadCloser, error)
 }
 
-// endpointQuery is an endpoint with query strings.
+// EndpointQuery is an endpoint with query strings.
 type endpointQuery interface {
-	endpoint
-	query() (map[string]string, error)
+	Endpoint
+	Query() (map[string]string, error)
 }
 
-func (p *Pargo) call(e endpoint) error {
+func (p *Pargo) Call(e Endpoint) error {
 	header := make(http.Header)
 	_, isLogin := e.(*Login)
 	if isLogin == false {
 		if err := p.maybeAuth(); err != nil {
 			return err
 		}
-		header.Add("Authorization", fmt.Sprintf("Pardot api_key=%s, user_key=%s", p.apiKey, p.user.UserKey))
+		header.Add("Authorization",
+			fmt.Sprintf(
+				"Pardot api_key=%s, user_key=%s",
+				p.apiKey, p.user.UserKey,
+			),
+		)
 	}
-	req, err := p.newRequest(e, header)
+	req, err := p.NewRequest(e, header)
 	if err != nil {
 		return errors.Wrap(err, "building request")
 	}
@@ -124,32 +135,37 @@ func (p *Pargo) call(e endpoint) error {
 	}
 	if resBody.Err != nil {
 		switch resBody.Attr.ErrCode {
-		case 1: // API key expired so refresh key and try again.
+		case 1:
+			// API key expired so refresh key and try again.
 			p.apiKey = ""
-			return p.call(e)
+			return p.Call(e)
 		case 15:
 			return ErrLoginFailed{*resBody.Err}
 		case 71:
 			return ErrInvalidJSON{*resBody.Err}
 		}
 	}
-	return e.read(resBytes)
+	return e.Read(resBytes)
 }
 
-func (p *Pargo) newRequest(e endpoint, header http.Header) (*http.Request, error) {
+func (p *Pargo) NewRequest(
+	e Endpoint,
+	header http.Header,
+) (*http.Request, error) {
+
 	header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req := &http.Request{
-		Method: e.method(),
+		Method: e.Method(),
 		URL: &url.URL{
 			Scheme: "https",
 			Host:   base,
-			Path:   "/api/" + e.path(),
+			Path:   "/api/" + e.Path(),
 		},
 		Header: header,
 	}
 
-	if _, ok := e.(endpointBody); ok {
-		body, err := e.(endpointBody).body()
+	if _, ok := e.(EndpointBody); ok {
+		body, err := e.(EndpointBody).Body()
 		if err != nil {
 			return nil, err
 		}
@@ -159,7 +175,7 @@ func (p *Pargo) newRequest(e endpoint, header http.Header) (*http.Request, error
 	q := req.URL.Query()
 	q.Add("format", "json")
 	if _, ok := e.(endpointQuery); ok {
-		query, err := e.(endpointQuery).query()
+		query, err := e.(endpointQuery).Query()
 		if err != nil {
 			return nil, err
 		}
@@ -183,7 +199,7 @@ func (p *Pargo) maybeAuth() error {
 		email:   p.user.Email,
 		pass:    p.user.Pass,
 	}
-	err := p.call(&req)
+	err := p.Call(&req)
 	if err != nil {
 		return err
 	}
