@@ -42,7 +42,7 @@ func TestQueryProspects(t *testing.T) {
 		},
 	}
 
-	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -80,8 +80,8 @@ func TestQueryProspects(t *testing.T) {
 	})
 
 	res := []prospect{}
-	pardot := pargo.NewTestClient(testClient)
-	err := pardot.QueryProspects(pargo.QueryProspects{
+	client := newTestClient(testClient)
+	err := client.QueryProspects(pargo.QueryProspects{
 		Offset:      100,
 		Limit:       200,
 		Fields:      []string{"id", "email"},
@@ -105,7 +105,7 @@ func TestQueryProspects(t *testing.T) {
 }
 
 func TestQueryReadsEmptyPage(t *testing.T) {
-	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -117,7 +117,7 @@ func TestQueryReadsEmptyPage(t *testing.T) {
 			return &http.Response{
 				StatusCode: 200,
 				Body: ioutil.NopCloser(bytes.NewBufferString(
-					`{"result":{"total_results": 2}}`)),
+					`{"result":{"total_results": 2, "prospect":[]}}`)),
 				Header: make(http.Header)}
 		default:
 			t.Fatal("no endpoint called")
@@ -125,9 +125,9 @@ func TestQueryReadsEmptyPage(t *testing.T) {
 		}
 	})
 
-	pardot := pargo.NewTestClient(testClient)
+	client := newTestClient(testClient)
 	var prospects []struct{}
-	err := pardot.QueryProspects(pargo.QueryProspects{
+	err := client.QueryProspects(pargo.QueryProspects{
 		Offset:      100,
 		Limit:       200,
 		Fields:      []string{"id"},
