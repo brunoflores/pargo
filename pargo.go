@@ -123,9 +123,15 @@ func (p *Pargo) Call(e Endpoint) error {
 		return errors.Wrap(err, "reading response bytes")
 	}
 	switch c := res.StatusCode; c {
-	case 200, 201:
+	case 200, 201, 204:
 	default:
-		return errors.New(fmt.Sprintf("status code %d: %s", c, string(resBytes)))
+		// For status codes not in the case above.
+		return errors.New(
+			fmt.Sprintf(
+				"got status code %d for %s",
+				c, string(resBytes),
+			),
+		)
 	}
 	resBody := struct {
 		Err  *string `json:"err,omitempty"`
