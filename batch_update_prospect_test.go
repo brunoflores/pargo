@@ -21,7 +21,7 @@ func TestBatchUpdateProspects(t *testing.T) {
 		prospect{20, "b@b.com"},
 	}
 
-	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -44,7 +44,7 @@ func TestBatchUpdateProspects(t *testing.T) {
 		}
 	})
 
-	pardot := pargo.NewTestClient(testClient)
+	pardot := newTestClient(testClient)
 	err := pardot.BatchUpdateProspects(pargo.BatchUpdateProspect{
 		Prospects: &prospects,
 	})
@@ -54,7 +54,7 @@ func TestBatchUpdateProspects(t *testing.T) {
 }
 
 func TestBatchUpdateProspectsReturnsErrors(t *testing.T) {
-	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -80,7 +80,7 @@ func TestBatchUpdateProspectsReturnsErrors(t *testing.T) {
 	})
 
 	prospects := []struct{}{}
-	pardot := pargo.NewTestClient(testClient)
+	pardot := newTestClient(testClient)
 	err := pardot.BatchUpdateProspects(pargo.BatchUpdateProspect{
 		Prospects: &prospects,
 	})

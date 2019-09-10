@@ -24,18 +24,18 @@ type ListMembership struct {
 
 // ListMemberships executes the endpoint with arguments.
 func (p *Pargo) ListMemberships(args ListMemberships) error {
-	return p.call(args)
+	return p.Call(args)
 }
 
-func (ListMemberships) method() string {
+func (ListMemberships) Method() string {
 	return http.MethodGet
 }
 
-func (ListMemberships) path() string {
+func (ListMemberships) Path() string {
 	return "listMembership/" + version + "/do/query"
 }
 
-func (q ListMemberships) query() (map[string]string, error) {
+func (q ListMemberships) Query() (map[string]string, error) {
 	query := make(map[string]string)
 	query["offset"] = strconv.Itoa(q.Offset)
 	query["limit"] = strconv.Itoa(q.Limit)
@@ -43,7 +43,7 @@ func (q ListMemberships) query() (map[string]string, error) {
 	return query, nil
 }
 
-func (q ListMemberships) read(res []byte) error {
+func (q ListMemberships) Read(res []byte) error {
 	body := struct {
 		Result struct {
 			Total int             `json:"total_results"`

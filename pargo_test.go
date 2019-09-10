@@ -12,8 +12,9 @@ import (
 )
 
 // The requirement is that an API Key should be requested if none is found,
-// and then it should be reused until any authenticated request returns err code 1 from Pardot.
-// When err code 1 occurs, a new API Key should be requested and then used, transparently for the client.
+// and then it should be reused until any authenticated request returns
+// err code 1 from Pardot.
+// When err code 1 occurs, a new API Key should be requested and then used.
 func TestReuseAPIKeyUntilExpired(t *testing.T) {
 	requests := []struct {
 		path, apiKey  string
@@ -52,16 +53,27 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 	}
 
 	// State kept over executions of requests.
-	// It is used to validate the current state by comparison with the expected.
+	// It is used to validate the current state by comparison with
+	// the expected.
 	currentIndex := 0
 
-	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	const (
+		keyExpired = `{
+"err":"Invalid API key or user key",
+"@attributes":{"err_code": 1}
+}`
+	)
+
+	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
+
+		// Index is incremented on exit.
 		defer func() { currentIndex++ }()
+
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
 			if requests[currentIndex].path != `login/` {
-				t.Fatalf("request #%d was not expected to be a login", currentIndex)
+				t.Fatalf("request #%d not expected to be login", currentIndex)
 			}
 			if got := req.PostFormValue("email"); got != "a@b.com" {
 				t.Fatalf("expected credential: email=%s, got: %s", "a@b.com", got)
@@ -86,11 +98,9 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 			if auth := req.Header["Authorization"][0]; auth != expected {
 				t.Fatalf(`expected Authorization header %s, got %s`, expected, auth)
 			}
-			var jsonStr string
+			var jsonStr = `{"result":{}}`
 			if requests[currentIndex].returnExpired {
-				jsonStr = `{"err":"Invalid API key or user key","@attributes":{"err_code": 1}}`
-			} else {
-				jsonStr = `{"result":{}}`
+				jsonStr = keyExpired
 			}
 			return &http.Response{
 				StatusCode: 200,
@@ -101,10 +111,10 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 		}
 	})
 
-	pardot := pargo.NewTestClient(testClient)
+	client := newTestClient(testClient)
 
 	for range []int{0, 1, 2} {
-		err := pardot.MockEndpoint(pargo.MockEndpoint{PathFunc: func() string { return "/query" }})
+		err := client.Call(mockEndpoint{PathFunc: func() string { return "/query" }})
 		if err != nil {
 			t.Fatalf("no errors expected, got %s", err)
 		}
@@ -113,7 +123,7 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 
 func TestResultsInErr15(t *testing.T) {
 	expected := "Login failed"
-	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -128,8 +138,8 @@ func TestResultsInErr15(t *testing.T) {
 		}
 	})
 
-	pardot := pargo.NewTestClient(testClient)
-	err := pardot.MockEndpoint(pargo.MockEndpoint{})
+	client := newTestClient(testClient)
+	err := client.Call(mockEndpoint{})
 
 	if err == nil {
 		t.Fatal("expected error")
@@ -146,7 +156,7 @@ func TestResultsInErr15(t *testing.T) {
 
 func TestResultsInErr71(t *testing.T) {
 	expected := "Input needs to be valid JSON or XML"
-	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -166,8 +176,8 @@ func TestResultsInErr71(t *testing.T) {
 		}
 	})
 
-	pardot := pargo.NewTestClient(testClient)
-	err := pardot.MockEndpoint(pargo.MockEndpoint{PathFunc: func() string { return "/query" }})
+	client := newTestClient(testClient)
+	err := client.Call(mockEndpoint{PathFunc: func() string { return "/query" }})
 
 	if err == nil {
 		t.Fatal("expected error")
@@ -183,7 +193,7 @@ func TestResultsInErr71(t *testing.T) {
 }
 
 func TestFormatAllJSON(t *testing.T) {
-	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		if got := req.FormValue("format"); got != "json" {
 			t.Fatalf("expected query string format=%s, got: %s", "json", got)
 		}
@@ -192,6 +202,6 @@ func TestFormatAllJSON(t *testing.T) {
 			Body:       ioutil.NopCloser(bytes.NewBufferString(``)),
 			Header:     make(http.Header)}
 	})
-	pardot := pargo.NewTestClient(testClient)
-	_ = pardot.MockEndpoint(pargo.MockEndpoint{})
+	client := newTestClient(testClient)
+	_ = client.Call(mockEndpoint{})
 }

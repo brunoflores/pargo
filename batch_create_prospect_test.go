@@ -18,14 +18,15 @@ func TestBatchCreateProspects(t *testing.T) {
 		prospect{"a@a.com"},
 		prospect{"b@b.com"},
 	}
-	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
 			return &http.Response{
 				StatusCode: 200,
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
-				Header:     make(http.Header)}
+				Header:     make(http.Header),
+			}
 		case strings.Contains(u, `/batchCreate`):
 			expected := `{"prospects":[{"email":"a@a.com"},{"email":"b@b.com"}]}`
 			if got := req.FormValue("prospects"); got != expected {
@@ -34,13 +35,14 @@ func TestBatchCreateProspects(t *testing.T) {
 			return &http.Response{
 				StatusCode: 200,
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
-				Header:     make(http.Header)}
+				Header:     make(http.Header),
+			}
 		default:
 			t.Fatal("no endpoint called")
 			return nil
 		}
 	})
-	pardot := pargo.NewTestClient(testClient)
+	pardot := newTestClient(testClient)
 	err := pardot.BatchCreateProspects(pargo.BatchCreateProspect{
 		Prospects: &prospects,
 	})
@@ -50,7 +52,7 @@ func TestBatchCreateProspects(t *testing.T) {
 }
 
 func TestBatchCreateProspectsReturnsErrors(t *testing.T) {
-	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -75,7 +77,7 @@ func TestBatchCreateProspectsReturnsErrors(t *testing.T) {
 		}
 	})
 	prospects := []struct{}{}
-	pardot := pargo.NewTestClient(testClient)
+	pardot := newTestClient(testClient)
 	err := pardot.BatchCreateProspects(pargo.BatchCreateProspect{
 		Prospects: &prospects,
 	})

@@ -11,7 +11,7 @@ import (
 )
 
 func TestReadsAList(t *testing.T) {
-	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -31,7 +31,7 @@ func TestReadsAList(t *testing.T) {
 		}
 	})
 
-	pardot := pargo.NewTestClient(testClient)
+	pardot := newTestClient(testClient)
 	var memberships []pargo.ListMembership
 	err := pardot.ListMemberships(pargo.ListMemberships{
 		Offset:      100,
@@ -48,7 +48,7 @@ func TestReadsAList(t *testing.T) {
 }
 
 func TestReadsASingle(t *testing.T) {
-	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -68,7 +68,7 @@ func TestReadsASingle(t *testing.T) {
 		}
 	})
 
-	pardot := pargo.NewTestClient(testClient)
+	pardot := newTestClient(testClient)
 	var memberships []pargo.ListMembership
 	err := pardot.ListMemberships(pargo.ListMemberships{
 		Offset:      100,
@@ -85,7 +85,7 @@ func TestReadsASingle(t *testing.T) {
 }
 
 func TestReadsEmptyPage(t *testing.T) {
-	testClient := pargo.NewTestHTTPClient(func(req *http.Request) *http.Response {
+	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
 		case strings.Contains(u, `login/`):
@@ -105,7 +105,7 @@ func TestReadsEmptyPage(t *testing.T) {
 		}
 	})
 
-	pardot := pargo.NewTestClient(testClient)
+	pardot := newTestClient(testClient)
 	var memberships []pargo.ListMembership
 	err := pardot.ListMemberships(pargo.ListMemberships{
 		Offset:      100,

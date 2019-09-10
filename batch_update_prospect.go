@@ -13,15 +13,17 @@ type BatchUpdateProspect struct {
 
 // BatchUpdateProspects executes the endpoint with arguments.
 func (p *Pargo) BatchUpdateProspects(args BatchUpdateProspect) error {
-	return p.call(args)
+	return p.Call(args)
 }
 
-// BatchUpdateProspectErrors is the result from a batch operation when errors were encountered.
+// BatchUpdateProspectErrors is the result from a batch operation when
+// errors were encountered.
 //
-// NOTE from http://developer.pardot.com: If any errors are found during the batch process,
-// an error array will be returned for only the prospects with issues. The error array
-// will be key/value pairs where the key is the index of the prospect submitted in the request.
-// All other prospects will be processed as expected.
+// NOTE from http://developer.pardot.com: If any errors are found during the
+// batch process, an error array will be returned for only the prospects
+// with issues. The error array will be key/value pairs where the key is
+// the index of the prospect submitted in the request. All other prospects
+// will be processed as expected.
 type BatchUpdateProspectErrors struct {
 	Errors map[int]string
 }
@@ -34,15 +36,15 @@ func (b BatchUpdateProspectErrors) Error() string {
 	return strings.Join(concat, ", ")
 }
 
-func (q BatchUpdateProspect) method() string {
+func (q BatchUpdateProspect) Method() string {
 	return http.MethodPost
 }
 
-func (q BatchUpdateProspect) path() string {
+func (q BatchUpdateProspect) Path() string {
 	return "prospect/" + version + "/do/batchUpdate"
 }
 
-func (q BatchUpdateProspect) query() (map[string]string, error) {
+func (q BatchUpdateProspect) Query() (map[string]string, error) {
 	query := make(map[string]string)
 	type wrap struct {
 		Prospects interface{} `json:"prospects"`
@@ -56,7 +58,7 @@ func (q BatchUpdateProspect) query() (map[string]string, error) {
 	return query, nil
 }
 
-func (q BatchUpdateProspect) read(res []byte) error {
+func (q BatchUpdateProspect) Read(res []byte) error {
 	body := struct {
 		Errors *map[int]string `json:"errors,string,omitempty"`
 	}{}
