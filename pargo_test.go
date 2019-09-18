@@ -203,5 +203,9 @@ func TestFormatAllJSON(t *testing.T) {
 			Header:     make(http.Header)}
 	})
 	client := newTestClient(testClient)
-	_ = client.Call(mockEndpoint{})
+	_ = client.Call(mockEndpoint{
+		MethodFunc: func() string { return "" },
+		PathFunc:   func() string { return "" },
+		ReadFunc:   func([]byte) error { return nil },
+	})
 }
