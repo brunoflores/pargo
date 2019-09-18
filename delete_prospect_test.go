@@ -23,7 +23,7 @@ func TestDeleteProspect(t *testing.T) {
 		case strings.Contains(u, `/delete`):
 			got = u
 			return &http.Response{
-				StatusCode: 200,
+				StatusCode: 204,
 				Body:       ioutil.NopCloser(bytes.NewBufferString("")),
 				Header:     make(http.Header)}
 		default:
