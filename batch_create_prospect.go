@@ -69,7 +69,9 @@ func (q BatchCreateProspect) Read(res []byte) error {
 		for k, v := range *body.Errors {
 			result.Errors[k] = v
 		}
-		return result
+		if len(result.Errors) > 0 {
+			return result
+		}
 	}
 	return nil
 }
