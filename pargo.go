@@ -133,6 +133,9 @@ func (p *Pargo) Call(e Endpoint) error {
 			),
 		)
 	}
+	if len(resBytes) == 0 {
+		return e.Read(resBytes)
+	}
 	resBody := struct {
 		Err  *string `json:"err,omitempty"`
 		Attr *struct {
