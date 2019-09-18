@@ -53,6 +53,7 @@ func (q QueryProspects) Read(res []byte) error {
 			Prospect json.RawMessage `json:"prospect"`
 		} `json:"result"`
 	}{}
+
 	// Discard error and assume that the JSON from Pardot is valid.
 	err := json.Unmarshal(res, &body)
 	if err != nil {

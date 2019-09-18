@@ -6,30 +6,48 @@ import (
 )
 
 type QueryAllProspects struct {
-	Fields []string
-	Page   func(json.RawMessage)
+	Fields    []string
+	Page      func(json.RawMessage)
+	Heartbeat func(offset, limit int)
 }
 
 // QueryAllProspects will return a slice of all *prospects* in Pardot.
 // The order in which prospects are returned is not guaranteed.
-func (p *Pargo) QueryAllProspects(query QueryAllProspects) {
+func (p *Pargo) QueryAllProspects(query QueryAllProspects) error {
 
 	// The Pardot REST API allows at most 5 parallel requests.
 	// Here we are making 4 to be on the safe side.
-	// If we exceed 5 at any point, the usual response is a time-out.
 	const workers = 4
 
 	var done = make(chan struct{}, workers)
+	var quit = make(chan error, workers)
+	var err error
 	var jobs = make(chan int)
-	var shut = make(chan struct{}, 1)
+	var shut = make(chan struct{}, workers)
 	var wg sync.WaitGroup
 
-	queryWorker := func(jobs <-chan int, done chan<- struct{}) {
+	maybeLog := func(fn func(int, int), offset, limit int) {
+		if fn == nil {
+			return
+		}
+		fn(offset, limit)
+	}
+
+	queryWorker := func(
+		jobs <-chan int,
+		done chan<- struct{},
+		quit chan<- error) {
+
 		defer func() { done <- struct{}{} }()
 		for n := range jobs {
+			var (
+				limit  = 200
+				offset = n * limit
+			)
+			maybeLog(query.Heartbeat, offset, limit)
 			err := p.QueryProspects(QueryProspects{
-				Offset:    n * 200,
-				Limit:     200,
+				Offset:    offset,
+				Limit:     limit,
 				Fields:    query.Fields,
 				Marshaler: query.Page,
 			})
@@ -38,6 +56,7 @@ func (p *Pargo) QueryAllProspects(query QueryAllProspects) {
 				case QueryProspectsEOF:
 					return
 				default:
+					quit <- err
 					return
 				}
 			}
@@ -45,7 +64,7 @@ func (p *Pargo) QueryAllProspects(query QueryAllProspects) {
 	}
 
 	for i := 0; i < workers; i++ {
-		go queryWorker(jobs, done)
+		go queryWorker(jobs, done, quit)
 	}
 
 	go func() {
@@ -62,6 +81,18 @@ func (p *Pargo) QueryAllProspects(query QueryAllProspects) {
 		}
 	}()
 
+	go func() {
+		for {
+			select {
+			case e := <-quit:
+				err = e
+				shut <- struct{}{}
+			case <-shut:
+				return
+			}
+		}
+	}()
+
 	wg.Add(workers)
 	go func() {
 		for range done {
@@ -70,4 +101,6 @@ func (p *Pargo) QueryAllProspects(query QueryAllProspects) {
 	}()
 	wg.Wait()
 	shut <- struct{}{}
+
+	return err
 }

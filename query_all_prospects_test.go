@@ -12,6 +12,39 @@ import (
 	"gitlab.xyz.apnic.net/go-pkg/pargo"
 )
 
+func TestQueryAllWithError(t *testing.T) {
+	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
+		u := req.URL.Path
+		switch {
+		case strings.Contains(u, `login/`):
+			return &http.Response{
+				StatusCode: 200,
+				Body: ioutil.NopCloser(
+					bytes.NewBufferString(`{}`)),
+				Header: make(http.Header)}
+		case strings.Contains(u, `/query`):
+			return &http.Response{
+				StatusCode: 503,
+				Body: ioutil.NopCloser(
+					bytes.NewBufferString("{}")),
+				Header: make(http.Header)}
+		default:
+			t.Fatal("unknown endpoint called")
+			return nil
+		}
+	})
+	client := newTestClient(testClient)
+	err := client.QueryAllProspects(pargo.QueryAllProspects{
+		Fields: []string{"id"},
+		Page:   func(json.RawMessage) {},
+	})
+	if err != nil {
+		// OK
+		return
+	}
+	t.Fatal("want error; got nil")
+}
+
 func TestQueryAllProspects(t *testing.T) {
 	const twoProspects = `{
   "result":{
@@ -72,10 +105,13 @@ func TestQueryAllProspects(t *testing.T) {
 		}
 		prospects = append(prospects, tmp...)
 	}
-	client.QueryAllProspects(pargo.QueryAllProspects{
+	err := client.QueryAllProspects(pargo.QueryAllProspects{
 		Fields: []string{"id"},
 		Page:   readPage,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got := len(prospects); got != 1 {
 		t.Fatalf("len(prospects) = %d; want %d", got, 1)
 	}
