@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"sync"
 
@@ -37,8 +38,9 @@ func (e ErrInvalidJSON) Error() string {
 }
 
 const (
-	base    = "pi.pardot.com"
-	version = "version/4"
+	hostSalesforce = "apnic.my.salesforce.com"
+	base           = "pi.pardot.com"
+	version        = "version/4"
 )
 
 // Pargo is the state of a client.
@@ -48,20 +50,24 @@ type Pargo struct {
 
 	apiKey   string // Initially empty, refreshed by login.
 	apiKeyMu sync.Mutex
+
+	businessUnitId string // Introduced after SSO migration to Salesforce.
 }
 
 // UserAccount is the set of required credentials.
 type UserAccount struct {
-	UserKey string // Client key used for login.
-	Email   string // Email used as username for login.
-	Pass    string // Password for login.
+	ClientId     string // Client id used to login.
+	ClientSecret string // Client secret used to login.
+	Email        string // Email used as username to login.
+	Pass         string // Password to login.
 }
 
 // NewPargo returns a pointer to a newly instantiated client.
-func NewPargo(u UserAccount, confs ...func(*Pargo)) *Pargo {
+func NewPargo(u UserAccount, businessUnitId string, confs ...func(*Pargo)) *Pargo {
 	client := Pargo{
-		client: &http.Client{}, // Default client.
-		user:   u,
+		client:         &http.Client{}, // Default client.
+		user:           u,
+		businessUnitId: businessUnitId,
 	}
 	for _, conf := range confs {
 		conf(&client)
@@ -80,7 +86,6 @@ func WithCustomClient(c *http.Client) func(*Pargo) {
 type Endpoint interface {
 	Method() string
 	Path() string
-	Read([]byte) error
 }
 
 // EndpointBody is an endpoint with a body.
@@ -95,70 +100,66 @@ type endpointQuery interface {
 	Query() (map[string]string, error)
 }
 
-func (p *Pargo) Call(e Endpoint) error {
-	header := make(http.Header)
-	_, isLogin := e.(*Login)
-	if isLogin == false {
-		if err := p.maybeAuth(); err != nil {
-			return err
-		}
-		header.Add("Authorization",
-			fmt.Sprintf(
-				"Pardot api_key=%s, user_key=%s",
-				p.apiKey, p.user.UserKey,
-			),
-		)
+func (p *Pargo) Call(req *http.Request) ([]byte, error) {
+	if err := p.maybeAuth(); err != nil {
+		return nil, err
 	}
-	req, err := p.NewRequest(e, header)
-	if err != nil {
-		return errors.Wrap(err, "building request")
-	}
+
+	req.Header = p.addAuthHeaders(req.Header)
+
 	res, err := p.client.Do(req)
 	if err != nil {
-		return errors.Wrap(err, "issuing request")
+		return nil, errors.Wrap(err, "issuing request")
 	}
 	defer res.Body.Close()
 	resBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return errors.Wrap(err, "reading response bytes")
+		return nil, errors.Wrap(err, "reading response bytes")
 	}
 	switch c := res.StatusCode; c {
 	case 200, 201, 204:
 	default:
 		// For status codes not in the case above.
-		return errors.New(
+		return nil, errors.New(
 			fmt.Sprintf(
 				"got status code %d for %s",
 				c, string(resBytes),
 			),
 		)
 	}
-	if len(resBytes) == 0 {
-		return e.Read(resBytes)
+	resBytes, err = p.parseRes(resBytes, req)
+	if err != nil {
+		return nil, err
 	}
+	return resBytes, nil
+}
+
+func (p *Pargo) parseRes(resBytes []byte, req *http.Request) ([]byte, error) {
 	resBody := struct {
 		Err  *string `json:"err,omitempty"`
 		Attr *struct {
 			ErrCode int `json:"err_code"`
 		} `json:"@attributes,omitempty"`
 	}{}
-	err = json.Unmarshal(resBytes, &resBody)
+	err := json.Unmarshal(resBytes, &resBody)
 	if err != nil {
-		return errors.Wrap(err, "unmarshaling response")
+		return nil, errors.Wrap(err, "unmarshaling response")
 	}
 	if resBody.Err != nil {
 		switch resBody.Attr.ErrCode {
 		case 1:
-			// API key expired so refresh key and try again.
+			// API key expired so refresh key and try again with
+			// the same body.
 			p.apiKey = ""
-			return p.Call(e)
+			p.maybeAuth()
+			return p.Call(req)
 		case 15:
-			return ErrLoginFailed{*resBody.Err}
+			return nil, ErrLoginFailed{*resBody.Err}
 		case 71:
-			return ErrInvalidJSON{*resBody.Err}
+			return nil, ErrInvalidJSON{*resBody.Err}
 		}
 	}
-	return e.Read(resBytes)
+	return resBytes, nil
 }
 
 func (p *Pargo) NewRequest(
@@ -167,7 +168,7 @@ func (p *Pargo) NewRequest(
 ) (*http.Request, error) {
 
 	header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req := &http.Request{
+	req := http.Request{
 		Method: e.Method(),
 		URL: &url.URL{
 			Scheme: "https",
@@ -198,26 +199,95 @@ func (p *Pargo) NewRequest(
 	}
 	req.URL.RawQuery = q.Encode()
 
-	return req, nil
+	return &req, nil
 }
 
 func (p *Pargo) maybeAuth() error {
+	// Synchronisation
 	p.apiKeyMu.Lock()
 	defer p.apiKeyMu.Unlock()
+
 	if p.apiKey != "" {
 		// Bails if we already have an api key.
 		// Try and use the one we've got.
 		return nil
 	}
-	req := Login{
-		userKey: p.user.UserKey,
-		email:   p.user.Email,
-		pass:    p.user.Pass,
+
+	headers := make(http.Header)
+	headers.Add("Content-Type", "application/x-www-form-urlencoded")
+	req := http.Request{
+		Method: http.MethodPost,
+		URL: &url.URL{
+			Scheme: "https",
+			Host:   hostSalesforce,
+			Path:   "/services/oauth2/token",
+		},
+		Header: headers,
 	}
-	err := p.Call(&req)
+
+	q := req.URL.Query()
+	q.Add("format", "json")
+	req.URL.RawQuery = q.Encode()
+
+	req.Body = ioutil.NopCloser(strings.NewReader(
+		fmt.Sprintf("client_id=%s&client_secret=%s&grant_type=%s&username=%s&password=%s",
+			p.user.ClientId, p.user.ClientSecret,
+			"password", p.user.Email, p.user.Pass)))
+	res, err := p.client.Do(&req)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "issuing login request")
 	}
-	p.apiKey = req.apiKey
+
+	// At this point we have a body. Ensure it is closed before we return.
+	defer res.Body.Close()
+
+	resBytes, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return errors.Wrap(err, "reading login response bytes")
+	}
+
+	switch c := res.StatusCode; c {
+	case 200, 201, 204:
+	default:
+		// Status codes not in the case above.
+		return errors.New(
+			fmt.Sprintf(
+				"got status code %d with body %s",
+				c, string(resBytes),
+			),
+		)
+	}
+
+	loginParsed := struct {
+		Key string `json:"access_token"`
+	}{}
+	// Discard error and assume that the JSON from Pardot is valid.
+	_ = json.Unmarshal(resBytes, &loginParsed)
+
+	// Finally, store the key.
+	// This is the schema of the response body:
+	// {
+	//    "access_token": "",
+	//    "instance_url": "",
+	//    "id": "",
+	//    "token_type": "",
+	//    "issued_at": "",
+	//    "signature": ""
+	// }
+
+	p.apiKey = loginParsed.Key
+
 	return nil
+}
+
+func (p *Pargo) addAuthHeaders(headers http.Header) http.Header {
+	headers.Set("Authorization",
+		fmt.Sprintf(
+			"Bearer %s",
+			p.apiKey,
+		),
+	)
+	headers.Set("Pardot-Business-Unit-Id",
+		fmt.Sprintf("%s", p.businessUnitId))
+	return headers
 }

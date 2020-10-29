@@ -21,7 +21,7 @@ func TestBatchCreateProspects(t *testing.T) {
 	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
-		case strings.Contains(u, `login/`):
+		case strings.Contains(u, `oauth2/`):
 			return &http.Response{
 				StatusCode: 200,
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
@@ -55,7 +55,7 @@ func TestBatchCreateProspectsReturnsErrors(t *testing.T) {
 	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
-		case strings.Contains(u, `login/`):
+		case strings.Contains(u, `oauth2/`):
 			return &http.Response{
 				StatusCode: 200,
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"api_key":"anyapikey"}`)),
@@ -87,7 +87,7 @@ func TestBatchCreateProspectsReturnsErrors(t *testing.T) {
 	switch err.(type) {
 	case pargo.BatchCreateProspectErrors:
 	default:
-		t.Fatal("expected error of type BatchCreateProspectErrors")
+		t.Fatalf("expected error of type BatchCreateProspectErrors")
 	}
 	if err.Error() == "" {
 		t.Fatal("expected a non-empty error message")

@@ -41,3 +41,17 @@ if err != nil {
 }
 // ... Use `response` slice.
 ```
+
+## Running tests
+
+To run all tests:
+
+```
+$ go test
+```
+
+To run a specific test:
+
+```
+$ go test -run=TestReuseAPIKeyUntilExpired
+```

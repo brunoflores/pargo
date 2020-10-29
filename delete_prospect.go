@@ -3,6 +3,8 @@ package pargo
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/pkg/errors"
 )
 
 type DeleteProspect struct {
@@ -10,7 +12,16 @@ type DeleteProspect struct {
 }
 
 func (p *Pargo) DeleteProspect(args DeleteProspect) error {
-	return p.Call(args)
+	headers := make(http.Header)
+	req, err := p.NewRequest(args, headers)
+	if err != nil {
+		return errors.Wrap(err, "building request")
+	}
+	_, err = p.Call(req)
+	if err != nil {
+		return errors.Wrap(err, "requesting")
+	}
+	return nil
 }
 
 func (DeleteProspect) Method() string {
@@ -23,8 +34,4 @@ func (q DeleteProspect) Path() string {
 
 func (DeleteProspect) Query() (map[string]string, error) {
 	return nil, nil
-}
-
-func (q DeleteProspect) Read(res []byte) error {
-	return nil
 }

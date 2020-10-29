@@ -24,7 +24,20 @@ type ListMembership struct {
 
 // ListMemberships executes the endpoint with arguments.
 func (p *Pargo) ListMemberships(args ListMemberships) error {
-	return p.Call(args)
+	headers := make(http.Header)
+	req, err := p.NewRequest(args, headers)
+	if err != nil {
+		return errors.Wrap(err, "building request")
+	}
+	body, err := p.Call(req)
+	if err != nil {
+		return errors.Wrap(err, "requesting")
+	}
+	err = args.readListMembership(body)
+	if err != nil {
+		return errors.Wrap(err, "parsing bytes")
+	}
+	return nil
 }
 
 func (ListMemberships) Method() string {
@@ -43,7 +56,7 @@ func (q ListMemberships) Query() (map[string]string, error) {
 	return query, nil
 }
 
-func (q ListMemberships) Read(res []byte) error {
+func (q ListMemberships) readListMembership(res []byte) error {
 	body := struct {
 		Result struct {
 			Total int             `json:"total_results"`

@@ -13,7 +13,20 @@ type BatchUpdateProspect struct {
 
 // BatchUpdateProspects executes the endpoint with arguments.
 func (p *Pargo) BatchUpdateProspects(args BatchUpdateProspect) error {
-	return p.Call(args)
+	headers := make(http.Header)
+	req, err := p.NewRequest(args, headers)
+	if err != nil {
+		return err
+	}
+	body, err := p.Call(req)
+	if err != nil {
+		return err
+	}
+	err = readBatchUpdateProspect(body)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // BatchUpdateProspectErrors is the result from a batch operation when
@@ -58,7 +71,7 @@ func (q BatchUpdateProspect) Query() (map[string]string, error) {
 	return query, nil
 }
 
-func (q BatchUpdateProspect) Read(res []byte) error {
+func readBatchUpdateProspect(res []byte) error {
 	body := struct {
 		Errors *map[int]string `json:"errors,string,omitempty"`
 	}{}

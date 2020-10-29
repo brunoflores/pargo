@@ -28,7 +28,20 @@ type QueryProspects struct {
 
 // QueryProspects executes the endpoint with arguments.
 func (p *Pargo) QueryProspects(args QueryProspects) error {
-	return p.Call(args)
+	headers := make(http.Header)
+	req, err := p.NewRequest(args, headers)
+	if err != nil {
+		return errors.Wrap(err, "building request")
+	}
+	body, err := p.Call(req)
+	if err != nil {
+		return errors.Wrap(err, "requesting")
+	}
+	err = args.readQueryProspects(body)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (QueryProspects) Method() string {
@@ -47,7 +60,7 @@ func (q QueryProspects) Query() (map[string]string, error) {
 	}, nil
 }
 
-func (q QueryProspects) Read(res []byte) error {
+func (q QueryProspects) readQueryProspects(res []byte) error {
 	body := struct {
 		Result struct {
 			Prospect json.RawMessage `json:"prospect"`

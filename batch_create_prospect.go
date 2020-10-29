@@ -13,7 +13,20 @@ type BatchCreateProspect struct {
 
 // BatchCreateProspects executes the endpoint with arguments.
 func (p *Pargo) BatchCreateProspects(args BatchCreateProspect) error {
-	return p.Call(args)
+	headers := make(http.Header)
+	req, err := p.NewRequest(args, headers)
+	if err != nil {
+		return err
+	}
+	body, err := p.Call(req)
+	if err != nil {
+		return err
+	}
+	err = readBatchCreateProspect(body)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // BatchCreateProspectErrors is the result from a batch operation when errors
@@ -58,7 +71,7 @@ func (q BatchCreateProspect) Query() (map[string]string, error) {
 	return query, nil
 }
 
-func (q BatchCreateProspect) Read(res []byte) error {
+func readBatchCreateProspect(res []byte) error {
 	body := struct {
 		Errors *map[int]string `json:"errors,string,omitempty"`
 	}{}

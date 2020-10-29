@@ -9,10 +9,12 @@ import (
 func newTestClient(c *http.Client) *pargo.Pargo {
 	return pargo.NewPargo(
 		pargo.UserAccount{
-			Email:   "a@b.com",
-			Pass:    "pass",
-			UserKey: "clientkey",
+			Email:        "a@b.com",
+			Pass:         "pass",
+			ClientId:     "clientid",
+			ClientSecret: "clientsecret",
 		},
+		"somebusinessunitid",
 		pargo.WithCustomClient(c),
 	)
 }

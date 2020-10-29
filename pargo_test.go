@@ -21,7 +21,7 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 		returnExpired bool
 	}{
 		{
-			"login/",
+			"oauth2/",
 			"apikey#0",
 			false,
 		},
@@ -41,7 +41,7 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 			true,
 		},
 		{
-			"login/",
+			"oauth2/",
 			"apikey#1",
 			false,
 		},
@@ -71,32 +71,42 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 
 		u := req.URL.Path
 		switch {
-		case strings.Contains(u, `login/`):
-			if requests[currentIndex].path != `login/` {
-				t.Fatalf("request #%d not expected to be login", currentIndex)
+		case strings.Contains(u, `oauth2/`):
+			if requests[currentIndex].path != `oauth2/` {
+				t.Fatalf("request #%d expected to be oauth2", currentIndex)
 			}
-			if got := req.PostFormValue("email"); got != "a@b.com" {
-				t.Fatalf("expected credential: email=%s, got: %s", "a@b.com", got)
+			if got := req.PostFormValue("username"); got != "a@b.com" {
+				t.Fatalf("expected credential: username=%s, got: %s", "a@b.com", got)
 			}
 			if got := req.PostFormValue("password"); got != "pass" {
 				t.Fatalf("expected credential: password=%s, got: %s", "pass", got)
 			}
-			if got := req.PostFormValue("user_key"); got != "clientkey" {
-				t.Fatalf("expected credential: user_key=%s, got: %s", "clientkey", got)
+			if got := req.PostFormValue("client_secret"); got != "clientsecret" {
+				t.Fatalf("expected credential: client_secret=%s, got: %s", "clientsecret", got)
+			}
+			if got := req.PostFormValue("client_id"); got != "clientid" {
+				t.Fatalf("expected credential: client_id=%s, got: %s", "clientid", got)
+			}
+			if got := req.PostFormValue("grant_type"); got != "password" {
+				t.Fatalf("expected credential: grant_type=%s, got: %s", "password", got)
 			}
 			return &http.Response{
 				StatusCode: 200,
 				Body: ioutil.NopCloser(bytes.NewBufferString(
-					fmt.Sprintf(`{"api_key":"%s"}`, requests[currentIndex].apiKey))),
+					fmt.Sprintf(`{"access_token":"%s"}`, requests[currentIndex].apiKey))),
 				Header: make(http.Header)}
 		case strings.Contains(u, `/query`):
-			if requests[currentIndex].path != `/query` {
-				t.Fatalf("request #%d was not expected to be a query", currentIndex)
+			if got := requests[currentIndex].path; got != `/query` {
+				t.Fatalf("request #%d was expected to be a query; got %q", currentIndex, got)
 			}
 			expected := fmt.Sprintf(
-				"Pardot api_key=%s, user_key=%s", requests[currentIndex].apiKey, "clientkey")
+				"Bearer %s", requests[currentIndex].apiKey)
+			if req.Header["Authorization"] == nil {
+				t.Fatal("Authorization header missing")
+			}
 			if auth := req.Header["Authorization"][0]; auth != expected {
-				t.Fatalf(`expected Authorization header %s, got %s`, expected, auth)
+				t.Fatalf(`expected Authorization header %q, got %q, index %d`,
+					expected, auth, currentIndex)
 			}
 			var jsonStr = `{"result":{}}`
 			if requests[currentIndex].returnExpired {
@@ -114,7 +124,13 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 	client := newTestClient(testClient)
 
 	for range []int{0, 1, 2} {
-		err := client.Call(mockEndpoint{PathFunc: func() string { return "/query" }})
+		req, err := client.NewRequest(
+			mockEndpoint{PathFunc: func() string { return "/query" }},
+			make(http.Header))
+		if err != nil {
+			t.Fatalf("no errors expected, got %s", err)
+		}
+		_, err = client.Call(req)
 		if err != nil {
 			t.Fatalf("no errors expected, got %s", err)
 		}
@@ -124,22 +140,19 @@ func TestReuseAPIKeyUntilExpired(t *testing.T) {
 func TestResultsInErr15(t *testing.T) {
 	expected := "Login failed"
 	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
-		u := req.URL.Path
-		switch {
-		case strings.Contains(u, `login/`):
-			return &http.Response{
-				StatusCode: 200,
-				Body: ioutil.NopCloser(
-					bytes.NewBufferString(`{"err":"` + expected + `","@attributes":{"err_code":15}}`)),
-				Header: make(http.Header)}
-		default:
-			t.Fatal("endpoint not called")
-			return nil
-		}
+		return &http.Response{
+			StatusCode: 200,
+			Body: ioutil.NopCloser(
+				bytes.NewBufferString(
+					`{"err":"` + expected + `","@attributes":{"err_code":15}}`)),
+			Header: make(http.Header)}
 	})
 
 	client := newTestClient(testClient)
-	err := client.Call(mockEndpoint{})
+	req, _ := client.NewRequest(
+		mockEndpoint{PathFunc: func() string { return "/query" }},
+		make(http.Header))
+	_, err := client.Call(req)
 
 	if err == nil {
 		t.Fatal("expected error")
@@ -159,7 +172,7 @@ func TestResultsInErr71(t *testing.T) {
 	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
-		case strings.Contains(u, `login/`):
+		case strings.Contains(u, `oauth2/`):
 			return &http.Response{
 				StatusCode: 200,
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"api_key":"anyapikey"}`)),
@@ -177,7 +190,10 @@ func TestResultsInErr71(t *testing.T) {
 	})
 
 	client := newTestClient(testClient)
-	err := client.Call(mockEndpoint{PathFunc: func() string { return "/query" }})
+	req, _ := client.NewRequest(
+		mockEndpoint{PathFunc: func() string { return "/query" }},
+		make(http.Header))
+	_, err := client.Call(req)
 
 	if err == nil {
 		t.Fatal("expected error")
@@ -195,7 +211,7 @@ func TestResultsInErr71(t *testing.T) {
 func TestFormatAllJSON(t *testing.T) {
 	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		if got := req.FormValue("format"); got != "json" {
-			t.Fatalf("expected query string format=%s, got: %s", "json", got)
+			t.Fatalf("expected query string format=%q, got: %q", "json", got)
 		}
 		return &http.Response{
 			StatusCode: 200,
@@ -203,9 +219,11 @@ func TestFormatAllJSON(t *testing.T) {
 			Header:     make(http.Header)}
 	})
 	client := newTestClient(testClient)
-	_ = client.Call(mockEndpoint{
-		MethodFunc: func() string { return "" },
-		PathFunc:   func() string { return "" },
-		ReadFunc:   func([]byte) error { return nil },
-	})
+	req, _ := client.NewRequest(
+		mockEndpoint{
+			MethodFunc: func() string { return "" },
+			PathFunc:   func() string { return "" },
+			ReadFunc:   func([]byte) error { return nil },
+		}, make(http.Header))
+	_, _ = client.Call(req)
 }

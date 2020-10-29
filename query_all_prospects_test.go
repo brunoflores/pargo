@@ -16,7 +16,7 @@ func TestQueryAllWithError(t *testing.T) {
 	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
-		case strings.Contains(u, `login/`):
+		case strings.Contains(u, `oauth2/`):
 			return &http.Response{
 				StatusCode: 200,
 				Body: ioutil.NopCloser(
@@ -29,7 +29,7 @@ func TestQueryAllWithError(t *testing.T) {
 					bytes.NewBufferString("{}")),
 				Header: make(http.Header)}
 		default:
-			t.Fatal("unknown endpoint called")
+			t.Fatalf("unknown endpoint called %q", u)
 			return nil
 		}
 	})
@@ -64,7 +64,7 @@ func TestQueryAllProspects(t *testing.T) {
 	testClient := newTestHTTPClient(func(req *http.Request) *http.Response {
 		u := req.URL.Path
 		switch {
-		case strings.Contains(u, `login/`):
+		case strings.Contains(u, `oauth2/`):
 			return &http.Response{
 				StatusCode: 200,
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
@@ -85,7 +85,7 @@ func TestQueryAllProspects(t *testing.T) {
 					bytes.NewBufferString(bodyStr)),
 				Header: make(http.Header)}
 		default:
-			t.Fatal("unknown endpoint called")
+			t.Fatalf("unknown endpoint called %q", u)
 			return nil
 		}
 	})
