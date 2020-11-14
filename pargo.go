@@ -48,7 +48,10 @@ type Pargo struct {
 	client *http.Client // HTTP Client we delegate calls to.
 	user   UserAccount  // Stored so the token can be refreshed as needed.
 
-	apiKey   string // Initially empty, refreshed by login.
+	apiKey string // Initially empty, refreshed by login.
+
+	// apiKeyMu protects the api key.
+	// It is quickly released after just some memory reads/writes.
 	apiKeyMu sync.Mutex
 
 	businessUnitId string // Introduced after SSO migration to Salesforce.
@@ -203,7 +206,8 @@ func (p *Pargo) NewRequest(
 }
 
 func (p *Pargo) maybeAuth() error {
-	// Synchronisation
+	// Synchronisation is needed so threads do not try to read the api
+	// key while another thread is trying to write a new one.
 	p.apiKeyMu.Lock()
 	defer p.apiKeyMu.Unlock()
 
@@ -281,6 +285,11 @@ func (p *Pargo) maybeAuth() error {
 }
 
 func (p *Pargo) addAuthHeaders(headers http.Header) http.Header {
+	// Synchronisation is needed so threads do not try to read the api
+	// key while another thread is trying to write a new one.
+	p.apiKeyMu.Lock()
+	defer p.apiKeyMu.Unlock()
+
 	headers.Set("Authorization",
 		fmt.Sprintf(
 			"Bearer %s",
