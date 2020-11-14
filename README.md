@@ -6,7 +6,19 @@ Package pargo provides a Go client for the [Pardot REST API](http://developer.pa
 
 Getting started:
 
+```
+module github.com/me/mymodule
+
+go 1.12
+
+require (
+    github.com/brunoflores/pargo v1.2.0
+)
+```
+
 ```go
+import "github.com/brunoflores/pargo`"
+
 type prospect struct {
     ID    int    `json:"id"`
     Email string `json:"email"`
