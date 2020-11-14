@@ -59,7 +59,7 @@ if err != nil {
 To run all tests:
 
 ```
-$ go test
+$ make test
 ```
 
 To run a specific test:
