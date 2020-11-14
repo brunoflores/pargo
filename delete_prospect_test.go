@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.xyz.apnic.net/go-pkg/pargo"
+	"github.com/brunoflores/pargo"
 )
 
 func TestDeleteProspect(t *testing.T) {

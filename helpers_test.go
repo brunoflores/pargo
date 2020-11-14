@@ -3,7 +3,7 @@ package pargo_test
 import (
 	"net/http"
 
-	"gitlab.xyz.apnic.net/go-pkg/pargo"
+	"github.com/brunoflores/pargo"
 )
 
 func newTestClient(c *http.Client) *pargo.Pargo {

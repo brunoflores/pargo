@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.xyz.apnic.net/go-pkg/pargo"
+	"github.com/brunoflores/pargo"
 )
 
 // The requirement is that an API Key should be requested if none is found,

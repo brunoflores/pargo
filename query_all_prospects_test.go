@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"gitlab.xyz.apnic.net/go-pkg/pargo"
+	"github.com/brunoflores/pargo"
 )
 
 func TestQueryAllWithError(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.xyz.apnic.net/go-pkg/pargo"
+	"github.com/brunoflores/pargo"
 )
 
 // To make sure that the REST client respects all our json annotations,
