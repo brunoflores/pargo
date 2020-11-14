@@ -1,5 +1,8 @@
 # ParGo
 
+[![codecov](https://codecov.io/gh/brunoflores/pargo/branch/master/graph/badge.svg)](https://codecov.io/gh/brunoflores/pargo)
+[![Build Status](https://travis-ci.org/brunoflores/pargo.svg?branch=master)](https://travis-ci.com/github/brunoflores/pargo)
+
 Package pargo provides a Go client for the [Pardot REST API](http://developer.pardot.com).
 
 `go get github.com/brunoflores/pargo`
